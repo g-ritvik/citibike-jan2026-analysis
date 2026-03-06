@@ -2,6 +2,22 @@ import pandas as pd
 from pathlib import Path
 from validate_csv import REQUIRED_HEADERS
 
+def clean_station_id(series: pd.Series) -> pd.Series:
+    """
+    Standardize station IDs:
+    - Convert to string
+    - Strip whitespace
+    - Remove trailing underscores
+    - Remove trailing .0 from float-like IDs
+    - Convert invalid placeholders to real NaN
+    """
+    return (
+        series.astype(str)
+        .str.strip()
+        .str.replace(r"_+$", "", regex=True)
+        .str.replace(r"\.0+$", "", regex=True)
+        .replace(["nan", "None", ""], pd.NA)
+    )
 
 def load_and_merge(file_paths: list, chunk_size: int = None) -> pd.DataFrame:
     """
@@ -85,47 +101,41 @@ def recover_missing_station_info(df: pd.DataFrame) -> pd.DataFrame:
 
     # Normalize station IDs as strings
     for col in ['start_station_id', 'end_station_id']:
-        df[col] = df[col].astype(str).str.replace(r'\.0+$', '', regex=True)
+        df[col] = clean_station_id(df[col])
 
     return df
 
 
 def create_stations_df(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create a unique stations reference table.
-    Keeps original station_ids whenever available,
-    deduplicates by station_id first, then by (lat, lng) if needed.
-    Adds an 'Unknown' station for safety.
-    """
     # Combine start and end stations
     start_stations = df[['start_station_id', 'start_station_name', 'start_lat', 'start_lng']].rename(
-        columns={'start_station_id': 'station_id', 'start_station_name': 'station_name',
-                 'start_lat': 'lat', 'start_lng': 'lng'}
+        columns={'start_station_id': 'station_id',
+                 'start_station_name': 'station_name',
+                 'start_lat': 'lat',
+                 'start_lng': 'lng'}
     )
     end_stations = df[['end_station_id', 'end_station_name', 'end_lat', 'end_lng']].rename(
-        columns={'end_station_id': 'station_id', 'end_station_name': 'station_name',
-                 'end_lat': 'lat', 'end_lng': 'lng'}
+        columns={'end_station_id': 'station_id',
+                 'end_station_name': 'station_name',
+                 'end_lat': 'lat',
+                 'end_lng': 'lng'}
     )
 
     stations_df = pd.concat([start_stations, end_stations], ignore_index=True)
 
-    # Normalize IDs
-    stations_df["station_id"] = stations_df["station_id"].astype(str).str.replace(r'\.0+$', '', regex=True)
+    # Normalize station_id
+    stations_df["station_id"] = clean_station_id(stations_df["station_id"])
 
-    # Deduplicate by station_id first
-    stations_df = stations_df.drop_duplicates(subset=['station_id'])
+    # Round coordinates
+    stations_df["lat"] = stations_df["lat"].round(4)
+    stations_df["lng"] = stations_df["lng"].round(4)
 
-    # For any remaining duplicates without station_id, keep one per (lat, lng)
-    stations_df = stations_df.drop_duplicates(subset=['lat', 'lng']).reset_index(drop=True)
+    # DROP rows missing station_id or station_name
+    stations_df = stations_df.dropna(subset=["station_id", "station_name"])
 
-    # Add 'Unknown' station if missing
-    if "-1" not in stations_df["station_id"].values:
-        stations_df = pd.concat([stations_df, pd.DataFrame([{
-            "station_id": "-1",
-            "station_name": "Unknown",
-            "lat": None,
-            "lng": None
-        }])], ignore_index=True)
+    # Deduplicate
+    stations_df = stations_df.drop_duplicates(subset=["station_id"])
+    stations_df = stations_df.drop_duplicates(subset=["station_name", "lat", "lng"]).reset_index(drop=True)
 
     return stations_df
 
@@ -153,7 +163,7 @@ def fill_missing_station_ids(df: pd.DataFrame, stations_df: pd.DataFrame) -> pd.
             axis=1
         )
         # 3. Replace any remaining nulls with '-1'
-        df[f'{col_prefix}_station_id'] = df[f'{col_prefix}_station_id'].fillna("-1").astype(str).str.replace(r'\.0+$', '', regex=True)
+        df[f'{col_prefix}_station_id'] = clean_station_id(df[f'{col_prefix}_station_id']).fillna("-1")
 
     return df
 

@@ -1,0 +1,91 @@
+/* ============================================================
+   1. CORE AGGREGATIONS (Measures)
+============================================================
+*/
+
+-- Total count of all trips in the dataset
+Total Rides = COUNTROWS('public trips')
+
+-- Average trip length in minutes
+Avg Trip Duration (min) = AVERAGE('public trips'[Trip Duration (min)])
+
+-- Percentage of total rides taken by subscribed members (ID 0)
+Member Ride % =
+DIVIDE(
+    CALCULATE([Total Rides], 'public trips'[member_type_id] = 0),
+    [Total Rides],
+    0
+)
+
+/* ============================================================
+   2. DYNAMIC RANKING & VISUAL CONTROL (Measures)
+============================================================
+*/
+
+-- Ranks stations from most to least busy (Top 10)
+Station Rank =
+RANKX(
+    ALL('Public Stations'[station_name]),
+    [Total Rides],
+    ,
+    DESC,
+    DENSE
+)
+
+-- Ranks stations from least to most busy (Bottom 10)
+Station Rank Asc =
+RANKX(
+    ALL('Public Stations'[station_name]),
+    [Total Rides],
+    ,
+    ASC,
+    DENSE
+)
+
+-- Controller for "Station View" Slicer
+-- Returns 1 if the station belongs in the user's selected view (Top 10 or Bottom 10)
+Show Station =
+VAR SelectedView = SELECTEDVALUE('Station View'[View Type], "All Stations")
+RETURN
+SWITCH(
+    SelectedView,
+    "Top 10 Busy", IF([Station Rank] <= 10, 1),
+    "Bottom 10 Busy", IF([Station Rank Asc] <= 10, 1),
+    1
+)
+
+/* ============================================================
+   3. DATA ENHANCEMENT (Calculated Columns)
+============================================================
+*/
+
+-- Extracts the hour (0-23) for peak-time analysis
+Start Hour = HOUR('Public Trips'[started_at])
+
+-- Generates the day name (e.g., "Monday")
+Weekday = FORMAT('public trips'[started_at], "dddd")
+
+-- Chronological sort helper (1=Monday, 7=Sunday)
+WeekdayNum = WEEKDAY('public trips'[started_at], 2)
+
+-- Cleans data by removing outliers (<1 min or >24 hours)
+Trip Duration (min) =
+VAR dur = DATEDIFF('public trips'[started_at], 'public trips'[ended_at], SECOND) / 60
+RETURN
+IF(dur < 1 || dur > 1440, BLANK(), dur)
+
+/* ============================================================
+   4. SUPPORTING DATA TABLES (Power BI Manual Table)
+============================================================
+-- Use "New Table" in Power BI and paste the following:
+*/
+
+Station View =
+DATATABLE(
+    "View Type", STRING,
+    {
+        {"All Stations"},
+        {"Top 10 Busy"},
+        {"Bottom 10 Busy"}
+    }
+)

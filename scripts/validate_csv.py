@@ -1,8 +1,9 @@
+import os
+
 import pandas as pd
 from pathlib import Path
 
 DATA_DIR = Path("../data")
-
 
 # Required CSV columns matching the current CitiBike trip dataset schema.
 # Source: CitiBike System Data (official release format)
@@ -26,7 +27,6 @@ def validate_file(file_path: Path) -> bool:
         return all(col in df.columns for col in REQUIRED_HEADERS)
     except Exception:
         return False
-
 
 def get_file_metadata(file_path: Path) -> dict:
     """
@@ -56,6 +56,7 @@ def scan_directory(data_dir: Path) -> list:
         if validate_file(file):
             metadata = get_file_metadata(file)
             results.append(metadata)
+            print(metadata)
 
     return results
 
@@ -90,3 +91,4 @@ def generate_summary(metadata_list: list) -> str:
 if __name__ == "__main__":
     metadata = scan_directory(DATA_DIR)
     print(generate_summary(metadata))
+    print(os.listdir(DATA_DIR))

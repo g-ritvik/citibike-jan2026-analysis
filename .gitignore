@@ -1,0 +1,17 @@
+*.pyc
+__pycache__/
+
+.venv/
+env/
+venv/
+
+cleaned_output/*.csv
+cleaned_output/*.xlsx
+scripts/test.py
+data/*.csv
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Citibike.pbix

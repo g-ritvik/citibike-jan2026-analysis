@@ -118,9 +118,6 @@ def run_pipeline():
     # -------------------------------
     logger.info("Filling missing station IDs...")
     df = fill_missing_station_ids(df, stations_df)
-    for col in ['start_station_id', 'end_station_id']:
-        df[col] = df[col].astype(str).str.replace(r'\.0+$', '', regex=True)
-    stations_df['station_id'] = stations_df['station_id'].astype(str).str.replace(r'\.0+$', '', regex=True)
 
     # -------------------------------
     # Finalize fact table
@@ -135,24 +132,28 @@ def run_pipeline():
     # -------------------------------
     OUTPUT_DIR.mkdir(exist_ok=True)
     logger.info("Saving cleaned fact table...")
-    save_csv_in_chunks(cleaned_df, OUTPUT_DIR / "cleaned_df.csv")
+
+    file_prefix = metadata[0]['file_name'][:-5]
+    output_file_names = list(map(lambda x: file_prefix+x, ["cleaned_df.csv", "rideable_df.csv", "member_df.csv", "stations_df.csv"]))
+
+    save_csv_in_chunks(cleaned_df, OUTPUT_DIR / output_file_names[0])
 
     logger.info("Saving mapping/reference tables...")
-    rideable_df.to_csv(OUTPUT_DIR / "rideable_df.csv", index=False)
-    member_df.to_csv(OUTPUT_DIR / "member_df.csv", index=False)
-    stations_df.to_csv(OUTPUT_DIR / "stations_df.csv", index=False)
+    rideable_df.to_csv(OUTPUT_DIR / output_file_names[1], index=False)
+    member_df.to_csv(OUTPUT_DIR / output_file_names[2], index=False)
+    stations_df.to_csv(OUTPUT_DIR / output_file_names[3], index=False)
 
     # -------------------------------
     # Calculate output file sizes
     # -------------------------------
-    cleaned_file = OUTPUT_DIR / "cleaned_df.csv"
-    rideable_file = OUTPUT_DIR / "rideable_df.csv"
-    member_file = OUTPUT_DIR / "member_df.csv"
-    stations_file = OUTPUT_DIR / "stations_df.csv"
+    cleaned_file = OUTPUT_DIR / output_file_names[0]
+    rideable_file = OUTPUT_DIR / output_file_names[1]
+    member_file = OUTPUT_DIR / output_file_names[2]
+    stations_file = OUTPUT_DIR / output_file_names[3]
 
     # Handle chunked cleaned_df
     if not cleaned_file.exists():
-        parts = list(OUTPUT_DIR.glob("cleaned_df_part*.csv"))
+        parts = list(OUTPUT_DIR.glob(file_prefix+"cleaned_df_part*.csv"))
         cleaned_size_mb = round(sum(f.stat().st_size for f in parts) / (1024 * 1024), 2)
     else:
         cleaned_size_mb = get_file_size_mb(cleaned_file)
