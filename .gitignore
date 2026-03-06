@@ -7,8 +7,9 @@ venv/
 
 cleaned_output/*.csv
 cleaned_output/*.xlsx
-scripts/test.py
 data/*.csv
+scripts/test.py
+
 
 .vscode/
 .idea/
