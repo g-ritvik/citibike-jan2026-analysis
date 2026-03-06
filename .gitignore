@@ -1,18 +1,23 @@
+# Python
 *.pyc
 __pycache__/
-
+venv/
 .venv/
 env/
-venv/
 
+# Data (Ignore the actual data, but keep the folders)
+data/*.csv
 cleaned_output/*.csv
 cleaned_output/*.xlsx
-data/*.csv
+
+# Scripts
 scripts/test.py
 
-
+# IDE & OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Power BI
 Citibike.pbix
