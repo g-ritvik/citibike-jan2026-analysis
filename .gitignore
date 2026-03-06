@@ -20,4 +20,4 @@ scripts/test.py
 Thumbs.db
 
 # Power BI
-Citibike.pbix
+*.pbix
